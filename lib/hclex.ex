@@ -12,7 +12,8 @@ defmodule Hclex do
       :world
 
   """
-  def hello do
-    :world
+  def parse(str) do
+    IO.puts(str)
   end
+
 end
