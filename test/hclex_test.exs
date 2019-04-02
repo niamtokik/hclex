@@ -1,5 +1,23 @@
 defmodule Hclex.LexerTest do
   use ExUnit.Case, async: true
+
+  test "comment #" do
+    str = "# this is a comment"
+    ret = [{:comment, "this is a comment"}]
+    assert Hclex.Lexer.lex(str), ret
+  end
+
+  test "comment //" do
+    str = "// this is a comment"
+    ret = [{:comment, "this is a comment"}]
+    assert Hclex.Lexer.lex(str), ret
+  end
+
+  test "comment /**/" do
+    str = "/* this is a comment */"
+    ret = [{:comment, "this is a comment"}]
+    assert Hclex.Lexer.lex(str), ret
+  end
   
   test "simple identifier" do
     str = "test"
@@ -26,8 +44,14 @@ defmodule Hclex.LexerTest do
   end
 
   test "simple block" do
-    str = ""
-    ret = ""
+    str = """
+    resource "test" {
+      identifier = "test"
+    }
+    """    
+    ret = [{:identifier, "resource"}, {:string, "test"}, :brace_open,
+           {:identifier, "identifier"}, :equal, {:string, "test"}]
+    
     assert Hclex.Lexer.lex(str), ret
   end
 end
