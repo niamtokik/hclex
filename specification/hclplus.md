@@ -15,11 +15,20 @@ wip
 
 ## Why HCL+
 
-wip
+HCL+ wants to add more safety in configuration file by creating a
+layer of specification and constraint. 
 
 ## Shared HCL Specification
 
-wip
+### Types
+
+### Argument Name
+
+### Argument Value
+
+### Identifiers
+
+### Block
 
 ## HCL+ Specification
 
@@ -91,6 +100,8 @@ wip
 
 ```
 ```
+
+## Glossary
 
 ## Notes
 
