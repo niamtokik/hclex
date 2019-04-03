@@ -1,77 +1,86 @@
 defmodule Hclex.LexerTest do
   use ExUnit.Case, async: true
 
-  test "numbers" do
-    assert Hclex.Lexer.number("0"),       {:ok, {:number, "0"}}
-    assert Hclex.Lexer.number("10"),      {:ok, {:number, "10"}}
-    assert Hclex.Lexer.number("-10"),     {:ok, {:number, "-10"}}
-    assert Hclex.Lexer.number("9999999"), {:ok, {:number, "9999999"}}
-    assert Hclex.Lexer.number("-999999"), {:ok, {:number, "-999999"}}
-    assert Hclex.Lexer.number("10.10"),   {:ok, {:number, "10.10"}}
-    assert Hclex.Lexer.number("-10.10"),  {:ok, {:number, "-10.10"}}
-    assert Hclex.Lexer.number("10e10"),   {:ok, {:number, "10e10"}}
-    assert Hclex.Lexer.number("-10e10"),  {:ok, {:number, "-10e10"}}
-    assert Hclex.Lexer.number("-10e+10"), {:ok, {:number, "-10e+10"}}
-    assert Hclex.Lexer.number("-10e-10"), {:ok, {:number, "-10e-10"}}
-    assert Hclex.Lexer.number("10E10"),   {:ok, {:number, "10E10"}}
-    assert Hclex.Lexer.number("-10E10"),  {:ok, {:number, "-10E10"}}
-    assert Hclex.Lexer.number("-10E+10"), {:ok, {:number, "-10E+10"}}
-    assert Hclex.Lexer.number("-10E-10"), {:ok, {:number, "-10E-10"}}
-    assert Hclex.Lexer.number("000"), {:error, :badformat}
-    assert Hclex.Lexer.number("10ee10", {:error, :badformat}
-  end
-  
-  test "comment #" do
-    str = "# this is a comment"
-    ret = [{:comment, "this is a comment"}]
-    assert Hclex.Lexer.lex(str), ret
+  test "simple one line comment (#)" do
+    str = "# this is a comment\n"
+    ret = [{:comment, " this is a comment"}]
+    assert Hclex.Lexer.execute(str), ret
   end
 
-  test "comment //" do
-    str = "// this is a comment"
-    ret = [{:comment, "this is a comment"}]
-    assert Hclex.Lexer.lex(str), ret
+  test "simple one line comment (//)" do
+    str = "// this is a comment\n"
+    ret = [{:comment, " this is a comment"}]
+    assert Hclex.Lexer.execute(str), ret
   end
 
-  test "comment /**/" do
-    str = "/* this is a comment */"
-    ret = [{:comment, "this is a comment"}]
-    assert Hclex.Lexer.lex(str), ret
-  end
-  
-  test "simple identifier" do
-    str = "test"
-    ret = [{:identifier, "test"}]
-    assert Hclex.Lexer.lex(str), ret
-  end
+  test "simple multiline comment (/**/)" do
+    str = """
+    /* this is a long multiline 
+    comment */
 
-  test "simple string" do
-    str = "\"this is a string\""
-    ret = [{:string, "this is a string"}]
-    assert Hclex.Lexer.lex(str), ret
+    """
+    ret = [{:comment, " this is a long multiline comment"}]
+    assert Hclex.Lexer.execute(str), ret
   end
 
   test "simple number" do
-    str = "1234"
-    ret = [{:number, 1234}]
-    assert Hclex.Lexer.lex(str), ret
+    str = "-123.3e10"
+    ret = [{:number, "-123.3e10"}]
+    assert Hclex.Lexer.execute(str), ret
   end
 
-  test "simple attributes" do
-    str = "identifier = 1234"
-    ret = [{:identifier, "identifier"}, :equal, {:number, 1234}]
-    assert Hclex.Lexer.lex(str), ret
+  test "simple identifier" do
+    str = "thisisatest"
+    ret = [{:identifier, "thisisatest"}]
+    assert Hclex.Lexer.execute(str), ret
+  end
+  
+  test "simple string" do
+    str = "\"this is a string\""
+    ret = [{:string, "this is a string"}]
+    assert Hclex.Lexer.execute(str), ret
   end
 
   test "simple block" do
     str = """
-    resource "test" {
-      identifier = "test"
+    { 
+       test = 123
     }
-    """    
-    ret = [{:identifier, "resource"}, {:string, "test"}, :brace_open,
-           {:identifier, "identifier"}, :equal, {:string, "test"}]
-    
-    assert Hclex.Lexer.lex(str), ret
+    """
+    ret = [:block_open, {:identifier, "test"}, :equal, {:number, "123"}, :block_close]
+    assert Hclex.Lexer.execute(str), ret
   end
+
+  test "multiline string" do
+    str = """
+    <<EOF
+    test
+    EOF
+    """
+    ret = [{:string, "test"}]
+    assert Hclex.Lexer.execute(str), ret
+  end
+
+  test "numbers" do
+    assert(Hclex.Lexer.execute("0"), [number: "0"])
+    assert(Hclex.Lexer.execute("10"), [number: "-10"])
+    assert(Hclex.Lexer.execute("-10"), [number: "-10"])
+    assert(Hclex.Lexer.execute("9999999"), [number: "9999999"])
+    assert(Hclex.Lexer.execute("-999999"), [number: "-999999"])
+    assert(Hclex.Lexer.execute("10.10"), [number: "10.10"])
+    assert(Hclex.Lexer.execute("-10.10"), [number: "-10.10"])
+    assert(Hclex.Lexer.execute("10e10"), [number: "10e10"])
+    assert(Hclex.Lexer.execute("-10e10"), [number: "-10e10"])
+    assert(Hclex.Lexer.execute("-10e+10"), [number: "-10e+10"])
+    assert(Hclex.Lexer.execute("-10e-10"), [number: "-10e-10"])
+    assert(Hclex.Lexer.execute("10E10"), [number: "10E10"])
+    assert(Hclex.Lexer.execute("-10E10"), [number: "-10E10"])
+    assert(Hclex.Lexer.execute("-10E+10"), [number: "-10E+10"])
+    assert(Hclex.Lexer.execute("-10E-10"), [number: "-10E-10"])
+  end
+
+  test "strings" do
+    assert Hclex.lexer.execute("\"this is a test\""), [{:string, "this is a test"}]
+  end
+
 end
