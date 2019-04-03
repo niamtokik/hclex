@@ -1,6 +1,26 @@
 defmodule Hclex.LexerTest do
   use ExUnit.Case, async: true
 
+  test "numbers" do
+    assert Hclex.Lexer.number("0"),       {:ok, {:number, "0"}}
+    assert Hclex.Lexer.number("10"),      {:ok, {:number, "10"}}
+    assert Hclex.Lexer.number("-10"),     {:ok, {:number, "-10"}}
+    assert Hclex.Lexer.number("9999999"), {:ok, {:number, "9999999"}}
+    assert Hclex.Lexer.number("-999999"), {:ok, {:number, "-999999"}}
+    assert Hclex.Lexer.number("10.10"),   {:ok, {:number, "10.10"}}
+    assert Hclex.Lexer.number("-10.10"),  {:ok, {:number, "-10.10"}}
+    assert Hclex.Lexer.number("10e10"),   {:ok, {:number, "10e10"}}
+    assert Hclex.Lexer.number("-10e10"),  {:ok, {:number, "-10e10"}}
+    assert Hclex.Lexer.number("-10e+10"), {:ok, {:number, "-10e+10"}}
+    assert Hclex.Lexer.number("-10e-10"), {:ok, {:number, "-10e-10"}}
+    assert Hclex.Lexer.number("10E10"),   {:ok, {:number, "10E10"}}
+    assert Hclex.Lexer.number("-10E10"),  {:ok, {:number, "-10E10"}}
+    assert Hclex.Lexer.number("-10E+10"), {:ok, {:number, "-10E+10"}}
+    assert Hclex.Lexer.number("-10E-10"), {:ok, {:number, "-10E-10"}}
+    assert Hclex.Lexer.number("000"), {:error, :badformat}
+    assert Hclex.Lexer.number("10ee10", {:error, :badformat}
+  end
+  
   test "comment #" do
     str = "# this is a comment"
     ret = [{:comment, "this is a comment"}]
