@@ -80,7 +80,7 @@ defmodule Hclex.LexerTest do
   end
 
   test "strings" do
-    assert Hclex.lexer.execute("\"this is a test\""), [{:string, "this is a test"}]
+    assert Hclex.Lexer.execute("\"this is a test\""), [{:string, "this is a test"}]
   end
 
 end

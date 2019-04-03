@@ -74,6 +74,11 @@ defmodule Hclex.Lexer do
   defp router(<<"}", rest :: bitstring>>, buffer, state, opts) do
     router(rest, buffer ++ [:block_close], state, opts)
   end
+
+  defp router(<<"<<", rest :: bitstring>>, buffer, state, opts) do
+    {:ok, string, r} = string_multiline(rest, opts)
+    router(r, buffer ++ [{:string, string}], state, opts)
+  end
   
   defp router(<<char, rest :: bitstring>>, buffer, state, opts)
   when char >= 48 and char <= 57 do
@@ -207,31 +212,116 @@ defmodule Hclex.Lexer do
     string(rest, <<buffer :: bitstring, char>>, opts)
   end
 
+
+  @doc """
+  Generate multiline string
+  """
+  defp string_multiline(str, opts) do
+    {:ok, pattern} = string_pattern(str)
+    state = %{ pattern: pattern,
+	       pattern_size: bit_size(pattern) }
+    string_multiline(str, <<>>, state, opts)
+  end
+
+  defp string_multiline(str, buffer, state, opts) do
+    %{ pattern: pattern, pattern_size: pattern_size } = state
+    case str do
+      <<pattern :: size(pattern_size), rest :: bitstring>> -> {:ok, {:string, buffer}, rest}
+      <<char, rest :: bitstring>> -> string_multiline(rest, <<buffer :: bitstring, char>>, state, opts)
+    end
+  end
+
+
+  @doc """
+  Find the multiline string pattern
+  """
+  defp string_pattern(str) do
+    string_pattern(str, <<>>)
+  end
+
+  defp string_pattern(<<" ">>, buffer) do
+    {:ok, buffer}
+  end
+
+  defp string_pattern(<<"\t">>, buffer) do
+    {:ok, buffer}
+  end
+  
+  defp string_pattern(<<"\n">>, buffer) do
+    {:ok, buffer}
+  end
+
+  defp string_pattern(<<"\r\n">>, buffer) do
+    {:ok, buffer}
+  end
+  
+  defp string_pattern(<<char, rest :: bitstring>>, buffer) do
+    string_pattern(rest, <<buffer :: bitstring, char>>)
+  end
   
   @doc """
   Generate and analyze a number.
   """
   @spec number(binary(), list()) :: {:ok, {:number, binary()}, binary()}
   defp number(str, opts) do
-    number(str, <<>>, opts)
+    state = %{ negative: false,
+	       scientific: false,
+	       float: false }
+    number(str, <<>>, state, opts)
   end
 
-  @spec number(binary(), binary(), list()) :: {:ok, {:number, binary()}, binary()}
-  defp number(<<>>, buffer, opts) do
+  @spec number(binary(), binary(), map(), list()) :: {:ok, {:number, binary()}, binary()}  
+  defp number(<<>>, buffer, state, opts) do
     {:ok, {:number, buffer}, <<>>}
   end
-  
-  defp number(<<"-", rest :: bitstring>>, <<>>, opts) do
-    number(rest, <<"-">>, opts)
-  end
-  
-  defp number(<<char, rest :: bitstring>>, buffer, opts)
-  when char >= 48 and char <= 57 do
-    number(rest, <<buffer :: bitstring, char>>, opts)
-  end
-  
-  defp number(<<char, rest :: bitstring>>, buffer, opts) do
+
+  defp number(<<" ", rest :: bitstring>>, buffer, state, opts) do
     {:ok, {:number, buffer}, rest}
+  end
+
+  defp number(<<"\t", rest :: bitstring>>, buffer, state, opts) do
+    {:ok, {:number, buffer}, rest}
+  end
+
+  defp number(<<"\n", rest :: bitstring>>, buffer, state, opts) do
+    {:ok, {:number, buffer}, rest}
+  end
+  
+  defp number(<<"-", rest :: bitstring>>, <<>>, %{ negative: false } = state, opts) do
+    number(rest, <<"-">>, %{ state | negative: true}, opts)
+  end
+
+  defp number(<<".", rest :: bitstring>>, buffer, %{ float: false } = state, opts) do
+    number(rest, <<buffer :: bitstring, ".">>, %{ state | float: true}, opts)
+  end
+  
+  defp number(<<"e+", rest :: bitstring>>, buffer, %{ scientific: false} = state, opts) do
+    number(rest, <<buffer :: bitstring, "e+">>, %{ state | scientific: true}, opts)
+  end
+
+  defp number(<<"e-", rest :: bitstring>>, buffer, %{ scientific: false} = state, opts) do
+    number(rest, <<buffer :: bitstring, "e-">>, %{ state | scientific: true}, opts)
+  end
+
+  defp number(<<"E+", rest :: bitstring>>, buffer, %{ scientific: false} = state, opts) do
+    number(rest, <<buffer :: bitstring, "e+">>, %{ state | scientific: true}, opts)
+  end
+
+  defp number(<<"E-", rest :: bitstring>>, buffer, %{ scientific: false} = state, opts) do
+    number(rest, <<buffer :: bitstring, "e-">>, %{ state | scientific: true}, opts)
+  end
+
+  defp number(<<"e", rest :: bitstring>>, buffer, %{ scientific: false} = state, opts) do
+    number(rest, <<buffer :: bitstring, "e">>, %{ state | scientific: true}, opts)
+  end
+
+  defp number(<<"E", rest :: bitstring>>, buffer, %{ scientific: false} = state, opts) do
+    number(rest, <<buffer :: bitstring, "e">>, %{ state | scientific: true}, opts)
+  end
+
+  defp number(<<char, rest :: bitstring>>, buffer, state, opts)
+  when char >= 48 and char <= 57 do
+    number(rest, <<buffer :: bitstring, char>>, state, opts)
   end
 
   @doc """
