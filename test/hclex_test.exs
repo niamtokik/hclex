@@ -168,9 +168,41 @@ defmodule Hclex.LexerBlockTest do
     {:ok, ret, _state} = Hclex.Lexer.execute(str)
     assert ret == [:block_open, :block_close]
   end
+
+  test "empty block" do
+    str = "{}"
+    {:ok, ret, _state} = Hclex.Lexer.execute(str)
+    assert ret == [:block_open, :block_close]
+  end
 end
 
 defmodule Hclex.LexerTest do
   use ExUnit.Case, async: true
+
+  test "block with attribution" do
+    str = """
+    { 
+      identifier = "value"
+    }
+    """
+    {:ok, ret, _state} = Hclex.Lexer.execute(str)
+    assert ret == [:block_open, {:identifier, "identifier"}, :equal, {:string, "value"}, :block_close]
+  end
+
+  test "block with list" do
+    str = """
+    { 
+      identifier = [1,2,3]
+    }
+    """
+    {:ok, ret, _state} = Hclex.Lexer.execute(str)
+    
+    assert ret = [:block_open, {:identifier, "identifier"}, :equal,
+                  :list_open, {:number, "1"}, :list_separator,
+		  {:number, "2"}, :list_separator,
+		  {:number, "3"}, :list_close, :block_close]
+		    
+		  
+  end
   
 end

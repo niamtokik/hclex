@@ -19,7 +19,7 @@ defmodule Hclex.Lexer do
   def execute(str, opts) do
     state = %{ line: 1,
 	       position: 1,
-	       position_relative: 1,
+	       relative_position: 1,
 	       version: :hcl }
     router(str, [], state, opts)
   end
