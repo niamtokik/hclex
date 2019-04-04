@@ -380,8 +380,18 @@ defmodule Hclex.Lexer do
   Increment the line by one.
   """
   @spec line(map()) :: map()
-  def line(state) do
-    %{ state | line: state.line+1 }
+  def line(%{ line: line, relative_position: relative_position } = state) do
+    %{ state |
+       line: line+1,
+       relative_position: 1 }
   end
-  
+
+  @doc """
+  Increment the cursor position
+  """
+  def position(%{ position: position, relative_position: relative_position} = state) do
+    %{ state |
+       position: position+1,
+       relative_position: relative_position+1 }
+  end
 end
