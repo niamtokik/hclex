@@ -32,6 +32,7 @@ defmodule Hclex.MixProject do
     [
       {:ex_doc, "~>0.19.0"},
       {:proper, "~>1.3.0"},
+      {:unicode, "~> 1.0.0"}
     ]
   end
   
