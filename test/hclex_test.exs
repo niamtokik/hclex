@@ -93,8 +93,42 @@ defmodule Hclex.LexerStringTest do
 
   test "simple string" do
     assert Hclex.Lexer.string("this is a string\"") == {:ok, {:string, "this is a string"}, ""}
+    assert Hclex.Lexer.string("this is a \\\" string\"") == {:ok, {:string, "this is a \\\" string"}, ""}
+    assert Hclex.Lexer.string("\a\b\n\"") == {:ok, {:string, "\a\b\n"}, ""}
   end
 
+  test "string with standard escape sequence" do
+    assert Hclex.Lexer.string("\' \"") == {:ok, {:string, "\' "}, ""}
+    assert Hclex.Lexer.string("\? \"") == {:ok, {:string, "\? "}, ""}
+    assert Hclex.Lexer.string("\\ \"") == {:ok, {:string, "\\ "}, ""}
+    assert Hclex.Lexer.string("\a \"") == {:ok, {:string, "\a "}, ""}
+    assert Hclex.Lexer.string("\b \"") == {:ok, {:string, "\b "}, ""}
+    assert Hclex.Lexer.string("\f \"") == {:ok, {:string, "\f "}, ""}
+    assert Hclex.Lexer.string("\n \"") == {:ok, {:string, "\n "}, ""}
+    assert Hclex.Lexer.string("\r \"") == {:ok, {:string, "\r "}, ""}
+    assert Hclex.Lexer.string("\t \"") == {:ok, {:string, "\t "}, ""}
+    assert Hclex.Lexer.string("\v \"") == {:ok, {:string, "\v "}, ""}
+    assert Hclex.Lexer.string("\r \"") == {:ok, {:string, "\r "}, ""}
+    assert Hclex.Lexer.string("\\\"\"") == {:ok, {:string, "\\\""}, ""}
+  end
+
+  test "string with octal escape sequence" do
+    assert false
+  end
+
+  test "string with hexadecimal escape sequence" do
+    assert Hclex.Lexer.string("\\x00\"") == {:ok, {:string, "\\x00"}, ""}
+    assert Hclex.Lexer.string(<<92, 120, 102, 102, 34>>) == {:ok, {:string, "\\xff"}, ""}
+  end
+
+  test "string with universal escape sequence (4n)" do
+    assert false
+  end
+
+  test "string with universal escape sequence (8n)" do
+    assert false
+  end
+  
   test "multiline string" do
     str = """
     EOF

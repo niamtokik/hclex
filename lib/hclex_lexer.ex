@@ -233,14 +233,35 @@ defmodule Hclex.Lexer do
   end
 
   @spec string(binary(), binary(), list()) :: {:ok, {:string, binary()}, binary()}
+  def string(<<"\\", rest :: bitstring>>, buffer, opts) do
+    {:ok, escape, r} = string_escape(rest)
+    string(r, << buffer :: bitstring, escape :: bitstring>>, opts)
+  end
+  
   def string(<<"\"", rest :: bitstring>>, buffer, opts) do
     {:ok, {:string, buffer}, rest}
   end
-
+  
   def string(<<char :: utf8, rest :: bitstring>>, buffer, opts) do
     string(rest, <<buffer :: bitstring, char>>, opts)
   end
 
+  @doc """
+  """
+  @spec string_escape(binary()) :: {:ok, binary(), binary()}
+  def string_escape(<<"\"", rest :: bitstring>>) do
+    {:ok, "\\\"", rest}
+  end
+
+  def string_escape(<<"\\", rest :: bitstring>>) do
+    {:ok, "\\\\", rest}
+  end
+  
+  def string_escape(<<"x", chara, charb, rest :: bitstring>>)
+    when (chara >= 48 and chara <= 57) or (chara >= 65 and chara <= 70) or (chara >= 97 and chara <= 102) and
+  (charb >= 48 and charb <= 57) or (charb >= 65 and charb <= 70) or (charb >= 97 and charb <= 102) do
+    {:ok, <<"\\","x",chara, charb>>, rest}
+  end  
 
   @doc """
   Generate multiline string

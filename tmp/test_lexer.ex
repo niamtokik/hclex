@@ -118,14 +118,24 @@ defmodule T do
   end
 end
 
-
+# start = %{ line: ls, position: ps, rposition: rps }
+# end = %{ line: le, position: pse, rposition: rpe }
+# { :string,
+#   "content",
+#   %{ start: start, end: end }
+# }
+#
+#
 defmodule U do
   def string(<<"\"">>, <<>>, state, opts) do
     string(str, <<>>)
   end
 
   def string(<<"\"">>, buffer, state, opts) do
-    {:ok, {:string, 
+    {:ok, {:string, buffer, state}, opts}
   end
-  
+
+  def string(<<char, rest :: bitstring>>, state, opts) do
+    string(rest, <<buffer :: bitstring, char>>, state, opts)
+  end
 end
