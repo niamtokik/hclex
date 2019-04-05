@@ -117,3 +117,15 @@ defmodule T do
        relative_position: relative_position+1 }
   end
 end
+
+
+defmodule U do
+  def string(<<"\"">>, <<>>, state, opts) do
+    string(str, <<>>)
+  end
+
+  def string(<<"\"">>, buffer, state, opts) do
+    {:ok, {:string, 
+  end
+  
+end
