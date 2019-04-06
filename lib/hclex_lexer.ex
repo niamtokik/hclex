@@ -1,12 +1,165 @@
 defmodule Hclex.Lexer do
   @moduledoc """
-  Lexer module take a raw HCL or HCL+ string:
+
+  Hclex.Lexer module create an internal representation of a raw HCL or
+  HCL+ file. This module ensure every specification of the Hashicorp
+  Configuration Language is correctly respected. The IR representation
+  is highly descriptive to give enough information about debugging or
+  data stream.
+
+  ## Lexer Output Internal Representation (IR)
+
+  ### Optional features
+
+  * Level of tolerance
+  * Token filtering
+  * HCL only
+  * HCL+ only
+
+  ### Token Metadata for Token Internal Representation
+
+  Each token has its own associated metadata containing position
+  related information:
+
+  * `line :: non_negative_integer()`: line of the token, compatible
+                                      with UNIX (`\n`) and WINDOWS
+                                      (`\r\n`) systems.
+
+  * `position :: non_negative_integer()`: position from the beginning
+                                          of the file, useful for a
+                                          raw datastream.
+
+  * `relative_position :: non_negative_integer()`: relative position
+                                                   from the start of
+                                                   the a new line
+
+  Those informations are stored in a map.
+
+  ```
+  # beginning of the token
+  start_ = %{ line: line, 
+              position: position, 
+              relative_position: relative_position }
+
+  # end of the token
+  stop_ = %{ line: line, 
+             position: position, 
+             relative_position: relative_position }
+
+  # full token metadata representation
+  state = % { start: start_, 
+            stop: stop_ }
+  ```
+
+  ### Comment Token 
+
+  Comments are usually dropped. In our case, comments are really
+  useful and can embed documentation or other important
+  information.
+
+  ```
+  {:comment, comment , state}
+  ```
+
+  ### Identifier Token
+
+  * ascii alphabet
+  * utf8 alphabet
+
+  ```
+  {:identifier, identifier, state}
+  ```
+
+  ### String Token
+
+  * alphanumeric characters
+  * utf8 characters
+  * unicode characters
+  * escape character validation
+
+  ```
+  {:string, string, state}
+  ```
+
+  ### Number Token
+
+  * integers notation
+  * float notation
+  * scientification notation
+  * hexadecimal notation
+  * octal notation
+  * utf8 notation
+  * utf32 notation
+
+  ```
+  {:number, number, state}
+  ```
+
+  ### List Tokens
+
+  A list is composed of values separated by `,` token.
+
+  ```
+  {:list_open, state}
+  {:list_separator, state}
+  {:list_close, state}
+  ```
+
+  ### Block Tokens
+
+  A block token is a composed data structure containing variables
+
+  ```
+  {:block_open, state}
+  {:block_separator, state}
+  {:block_close, state}
+  ```
+
+  ### Attribution and HCL+ Tokens
+
+  Attibution token
+
+  ```
+  {:equal, state}
+  ```
+
+  HCL+ actual tokens
   
-    * generate a high level view of the raw data
-    * analyze the syntax
-  
+  ```
+  {:type, state}
+  {:type_content, type_content, state}
+  {:guard, state}
+  {:guard, guard_content, state}
+  ```
+
+  ### Full Lexer Internal Representation
+
+  The Internal representation is a list of tuple.
+
+  ### Warnings
+
+  ### Errors
+
+
   """
 
+  @type lexer_state :: %{ line: line :: integer(),
+			  position: position :: integer(),
+			  position_relative: position_relative :: integer()
+  }
+  @type lexer_state_token :: %{ begin: start :: lexer_state(),
+				end: eend :: lexer_state() }
+  @type lexer_comment :: {:comment, bitstring(), lexer_state() }
+  @type lexer_identifier :: {:identifier, bitstring(), lexer_state() }
+  @type lexer_string :: {:string, bitstring(), lexer_state() }
+  @type lexer_number :: {:number, bitstring(), lexer_state() }
+  @type lexer_list :: {:list_open, lexer_state() } |
+                      {:list_close, lexer_state() } |
+                      {:list_separator, lexer_state() }
+  @type lexer_block :: {:block_open, lexer_state() } | {:bloack_close, lexer_state() }
+  @type lexer_return :: [ lexer_comment() | lexer_identifier() | lexer_string() | lexer_number() |
+			  lexer_list() | lexer_block(), ... ]
+  
   @doc """
   execute the binary string with or without options.
   """
@@ -233,9 +386,8 @@ defmodule Hclex.Lexer do
   end
 
   @spec string(binary(), binary(), list()) :: {:ok, {:string, binary()}, binary()}
-  def string(<<"\\", rest :: bitstring>>, buffer, opts) do
-    {:ok, escape, r} = string_escape(rest)
-    string(r, << buffer :: bitstring, escape :: bitstring>>, opts)
+  def string(<<"\\\"", rest :: bitstring>>, buffer, opts) do
+    string(rest, << buffer :: bitstring, "\\\"">>, opts)
   end
   
   def string(<<"\"", rest :: bitstring>>, buffer, opts) do
@@ -245,23 +397,6 @@ defmodule Hclex.Lexer do
   def string(<<char :: utf8, rest :: bitstring>>, buffer, opts) do
     string(rest, <<buffer :: bitstring, char>>, opts)
   end
-
-  @doc """
-  """
-  @spec string_escape(binary()) :: {:ok, binary(), binary()}
-  def string_escape(<<"\"", rest :: bitstring>>) do
-    {:ok, "\\\"", rest}
-  end
-
-  def string_escape(<<"\\", rest :: bitstring>>) do
-    {:ok, "\\\\", rest}
-  end
-  
-  def string_escape(<<"x", chara, charb, rest :: bitstring>>)
-    when (chara >= 48 and chara <= 57) or (chara >= 65 and chara <= 70) or (chara >= 97 and chara <= 102) and
-  (charb >= 48 and charb <= 57) or (charb >= 65 and charb <= 70) or (charb >= 97 and charb <= 102) do
-    {:ok, <<"\\","x",chara, charb>>, rest}
-  end  
 
   @doc """
   Generate multiline string
