@@ -153,8 +153,8 @@ defmodule Hclex.Lexer do
     * scientific notation (e.g. `123.10e10`)
     * hexadecimal notation (e.g. `0x123`)
     * octal notation (e.g. `\0213`)
-    * utf8 notation (e.g. `\u1234`)
-    * utf32 notation (e.g. `\U1234`)
+    * utf8 notation (e.g. `\\u1234`)
+    * utf32 notation (e.g. `\\U12341234`)
 
   Here a number example:
 
