@@ -22,119 +22,242 @@ defmodule Hclex.Lexer do
   related information:
 
   * `line :: non_negative_integer()`: line of the token, compatible
-                                      with UNIX (`\n`) and WINDOWS
-                                      (`\r\n`) systems.
+    with UNIX (`\\n`) and WINDOWS (`\\r\\n`) systems.
 
   * `position :: non_negative_integer()`: position from the beginning
-                                          of the file, useful for a
-                                          raw datastream.
+    of the file, useful for a raw datastream.
 
   * `relative_position :: non_negative_integer()`: relative position
-                                                   from the start of
-                                                   the a new line
+     from the start of the a new line
+
+  * `version :: atom()`: contain the version of file. support `:hcl`
+    and `:hclplus` version
 
   Those informations are stored in a map.
 
-  ```
+  ``` elixir
   # beginning of the token
   start_ = %{ line: line, 
               position: position, 
-              relative_position: relative_position }
+              relative_position: relative_position,
+	      version: :hcl }
 
   # end of the token
   stop_ = %{ line: line, 
              position: position, 
-             relative_position: relative_position }
+             relative_position: relative_position,
+	     version: :hcl }
 
   # full token metadata representation
   state = % { start: start_, 
-            stop: stop_ }
+              stop: stop_ }
   ```
 
   ### Comment Token 
+
+  Comment data-structure is a triplet, the first element is a fixed
+  atom `:comment`, the second element is the raw string containing the
+  comment, the third element is the associated metadata of the comment.
 
   Comments are usually dropped. In our case, comments are really
   useful and can embed documentation or other important
   information.
 
+  A comment is defined in 2 ways:
+
+    * single line comment: any characters after `#` and `//`
+    * multi line comment: any characters between `/*` and `*/`
+
+  A comment can store any kind of characters.
+
+  Here some comments example:
+
+  ```txt
+  # this is a comment
+
+  // this is another comment
+
+  /* this is a multi line
+     comment /*
   ```
-  {:comment, comment , state}
+
+  And the produced data-structure:
+
+  ```elixir
+  {:comment, comment, state}
   ```
 
   ### Identifier Token
 
-  * ascii alphabet
-  * utf8 alphabet
+  Identifier data-structure is a triplet. The first element is a fixed
+  atom `:identifier`, the second element is a raw string containing
+  the name of the identifier. The third element is the identifier
+  metadata containing the information about the identifier.
 
+  An identifier is a term containing only alphanumeric numbers and
+  supporting ascii/utf8 alphabet.
+
+  Here an identifier example:
+
+  ```txt
+  an_identifier123
   ```
+
+  And here the output:
+
+  ```elixir
   {:identifier, identifier, state}
   ```
 
   ### String Token
 
-  * alphanumeric characters
-  * utf8 characters
-  * unicode characters
-  * escape character validation
+  String data-structure is a triplet. The first element is a fixed
+  atom `:string`. The second element is a raw string containing the
+  content of the string. The third element is the string metadata.
 
+  A string start by `"` (double quote) character and end with `"`
+  (double quote) character. A string can contain any alphanumeric
+  characters and escaped sequence.
+
+  A multiline string exist too. Any character present between
+  `<<PATTERN\n` and `PATTERN\n` are converted as string where
+  `PATTERN` is a range of characters.
+
+  Here some string example:
+
+  ```txt
+  "i am a string"
+
+  <<EOF
+  i am a multiline string
+  EOF
   ```
+
+  and here the output:
+
+  ```elixir
   {:string, string, state}
   ```
 
   ### Number Token
 
-  * integers notation
-  * float notation
-  * scientification notation
-  * hexadecimal notation
-  * octal notation
-  * utf8 notation
-  * utf32 notation
+  Number data-structure is a triplet. The first element is a fixed
+  atom `:number`. The second element is a raw string containing the
+  content of the number. The third element is the metadata of the
+  number.
 
+  A number can have multiple representation:
+  
+    * integers notation (e.g. `123`)
+    * float notation (e.g. `123.123`)
+    * scientific notation (e.g. `123.10e10`)
+    * hexadecimal notation (e.g. `0x123`)
+    * octal notation (e.g. `\0213`)
+    * utf8 notation (e.g. `\u1234`)
+    * utf32 notation (e.g. `\U1234`)
+
+  Here a number example:
+
+  ```txt
+  123456789.10
   ```
+
+  And the resulting output:
+
+  ```elixir
   {:number, number, state}
   ```
 
   ### List Tokens
 
-  A list is composed of values separated by `,` token.
+  Lists data-structures are triplets. The first element is an atom
+  `:list`. The second element is an atom and represent the character,
+  `:open` for `[`, `:separator` for `,` and `:close` for `]`. The
+  third element is the metadata.
+
+  A list is a composed data-structure and can contain string and
+  number in it.
+
+  Here a list example:
+
+  ```txt
+  [1,2,3,"test"]
+  ```
+
+  And the result:
 
   ```
-  {:list_open, state}
-  {:list_separator, state}
-  {:list_close, state}
+  {:list, :open, state}
+  {:list, :separator, state}
+  {:list, :close, state}
   ```
 
   ### Block Tokens
 
-  A block token is a composed data structure containing variables
+  Block data-structure is a triplet. The first element is an atom
+  `:block`. The second element contains different atoms, `:open` for
+  `{`, `:separator` for `\n` and `:close` for `}`. The third element
+  contain the metadata.
 
+  A block token is a composed data structure containing variables (as
+  identifier) and content of the variables (as string, numbers, lists
+  or blocks).
+
+  Here an example of block:
+
+  ```txt
+  { 
+    identifier = "string"
+  }
   ```
-  {:block_open, state}
-  {:block_separator, state}
-  {:block_close, state}
+
+  Here the data-struture output:
+
+  ```elixir
+  {:block, :open, state}
+  {:block, :separator, state}
+  {:block, :attribution, state}
+  {:block, :close, state}
   ```
 
-  ### Attribution and HCL+ Tokens
+  ### Type Token (HCL+)
 
-  Attibution token
-
-  ```
-  {:equal, state}
-  ```
-
-  HCL+ actual tokens
+  A type is a data-structure giving the possibility to check the
+  content of a pattern based on different method like regex.
   
+  Here an example
+
+  ```txt
+  identifier :: type()
   ```
-  {:type, state}
-  {:type_content, type_content, state}
-  {:guard, state}
-  {:guard, guard_content, state}
+
+  and here the data-structure produced
+
+  ```elixir
+  {:type, type, state}
+  ```
+
+  ### Guard Token (HCL+)
+
+  A guard is a data-structure giving the possibility to check the
+  content of a pattern based on external functions and remotely fixed
+  values (think it as a database with pattern in it)
+  
+  Here an example:
+  
+  ```txt
+  identifier !! guard()
+  ```
+
+  And here the data-structure produced
+
+  ```elixir
+  {:guard, guard, state}
   ```
 
   ### Full Lexer Internal Representation
 
-  The Internal representation is a list of tuple.
+  The full IR is a list composed of tuple. 
 
   ### Warnings
 
@@ -143,44 +266,82 @@ defmodule Hclex.Lexer do
 
   """
 
+  @type raw_string() :: bitstring()
+  @type position() :: integer()
+  @type position_relative() :: integer()
+  @type line() :: integer()
+  @type version() :: atom()
+  @type lexer_opts() :: list()
+  
   @type lexer_state :: %{ line: line :: integer(),
 			  position: position :: integer(),
-			  position_relative: position_relative :: integer()
+			  position_relative: position_relative :: integer(),
+			  version: version :: version()
+			  
   }
-  @type lexer_state_token :: %{ begin: start :: lexer_state(),
-				end: eend :: lexer_state() }
-  @type lexer_comment :: {:comment, bitstring(), lexer_state() }
-  @type lexer_identifier :: {:identifier, bitstring(), lexer_state() }
-  @type lexer_string :: {:string, bitstring(), lexer_state() }
-  @type lexer_number :: {:number, bitstring(), lexer_state() }
-  @type lexer_list :: {:list_open, lexer_state() } |
-                      {:list_close, lexer_state() } |
-                      {:list_separator, lexer_state() }
-  @type lexer_block :: {:block_open, lexer_state() } | {:bloack_close, lexer_state() }
+  @type lexer_state_start() :: lexer_state()
+  @type lexer_state_stop() :: lexer_state()
+  
+  @type lexer_state_token :: %{ start: start :: lexer_state_start(),
+				stop: stop :: lexer_state_stop() }
+  
+  @type lexer_comment :: { :comment :: atom(),
+			   comment :: bitstring(),
+			   state :: lexer_state() }
+  
+  @type lexer_identifier :: {:identifier :: atom(),
+			     comment :: bitstring(),
+			     state :: lexer_state() }
+  
+  @type lexer_string :: {:string :: atom(),
+			 string :: bitstring(),
+			 state :: lexer_state() }
+  
+  @type lexer_number :: {:number :: atom(),
+			 number :: bitstring(),
+			 state :: lexer_state() }
+
+  @type lexer_list :: {:list :: atom(), :open :: atom(), state :: lexer_state() } |
+                      {:list :: atom(), :close :: atom(), state :: lexer_state() } |
+                      {:list :: atom(), :separator :: atom(), state :: lexer_state() }
+  
+  @type lexer_block :: {:block :: atom(), :open :: atom(), state :: lexer_state() } |
+                       {:block :: atom(), :close :: atom(), state :: lexer_state() }
+  
+  @type lexer_equal :: {:separator :: atom(), :equal :: atom(), state :: lexer_state() }
+  
   @type lexer_return :: [ lexer_comment() | lexer_identifier() | lexer_string() | lexer_number() |
 			  lexer_list() | lexer_block(), ... ]
   
   @doc """
-  execute the binary string with or without options.
+  `execute/1` take a bitstring and split it in token.
   """
-  @spec execute(binary()) :: {:ok, list(), map()}
+  @spec execute(raw_string :: raw_string()) :: {:ok, lexer_return(), lexer_state()}
   def execute(str)do
     execute(str, [])
   end
 
-  @spec execute(binary(), list()) :: {:ok, list(), map()}
+  
+  @doc """
+  `execute/2` take a bitstring and split it in token. The second
+  argument can alter the behavior of the lexer.
+  """  
+  @spec execute(raw_string :: raw_string(),
+                opts :: list()) :: {:ok, lexer_return(), lexer_state()}
   def execute(str, opts) do
     state = %{ line: 1,
 	       position: 1,
-	       relative_position: 1,
+	       position_relative: 1,
 	       version: :hcl }
     router(str, [], state, opts)
   end
 
   @doc """ 
-  Route all the data to the specific HCL data type function.
+  `router/4` is the main lexer fsm by splitting the raw string in
+  token. This function should be private and only accessible by
+  `execute/1` and `execute/2` functions.
   """  
-  @spec router(binary(), list(), map(), list()) :: {:ok, list(), map()}
+  @spec router(raw_string :: raw_string(), ret :: lexer_return(), state :: lexer_state(), opts :: list()) :: {:ok, lexer_return(), lexer_state()}
   def router(<<>>, buffer, state, opts) do
     {:ok, buffer, state}
   end
@@ -270,16 +431,17 @@ defmodule Hclex.Lexer do
   @doc """
   Generate and analyze an HCL or HCL+ comment line
   """
+  @spec comment_line(raw_string :: raw_string()) :: {:ok, comment :: lexer_comment(), rest :: raw_string() }
   def comment_line(str) do
     comment_line(str, [])
   end
-  
-  @spec comment_line(binary(), list()) :: {:ok, {:comment, binary()}, binary()}
+
+  @spec comment_line(raw_string :: raw_string(), opts :: lexer_opts()) :: {:ok, comment :: lexer_comment(), rest :: raw_string() }
   def comment_line(str, opts) do
     comment_line(str, <<>>, opts)
   end
 
-  @spec comment_line(binary(), binary(), list()) :: {:ok, {:comment, binary()}, binary()}
+  @spec comment_line(raw_string :: raw_string(), raw_string :: raw_string(), opts :: lexer_opts()) :: {:ok, comment :: lexer_comment(), rest :: raw_string() }
   def comment_line(<<>>, buffer, opts) do
     {:ok, {:comment, buffer}, <<>>}
   end
@@ -536,18 +698,19 @@ defmodule Hclex.Lexer do
   Increment the line by one.
   """
   @spec line(map()) :: map()
-  def line(%{ line: line, relative_position: relative_position } = state) do
+  def line(%{ line: line, position_relative: relative_position } = state) do
     %{ state |
        line: line+1,
-       relative_position: 1 }
+       position_relative: 1 }
   end
 
   @doc """
-  Increment the cursor position
+  Increment the position and position_relative cursors
   """
-  def position(%{ position: position, relative_position: relative_position} = state) do
+  @spec position(map()) :: map()
+  def position(%{ position: position, position_relative: relative_position} = state) do
     %{ state |
        position: position+1,
-       relative_position: relative_position+1 }
+       position_relative: relative_position+1 }
   end
 end

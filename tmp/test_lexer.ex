@@ -127,6 +127,11 @@ end
 #
 #
 defmodule U do
+
+  def string(<<"\\\"">>, buffer, state, opts) do
+    tail
+  end
+  
   def string(<<"\"">>, <<>>, state, opts) do
     string(str, <<>>)
   end
